@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Configuration
+.env
+
+# Qdrant data (важно игнорировать локальное хранилище БД)
+qdrant_storage/
+
+# Data
+data/
+!data/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# LangChain/HuggingFace cache
+.cache/
