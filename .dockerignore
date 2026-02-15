@@ -12,6 +12,7 @@ env/
 # Локальные базы данных и хранилища (в Docker должны быть пустые папки или Volumes)
 qdrant_storage/
 pdf_storage/
+hf_cache/
 
 # Секреты и настройки (передаются через Environment Variables в docker-compose)
 .env

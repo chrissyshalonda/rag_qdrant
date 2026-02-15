@@ -1,21 +1,14 @@
 import logging
 
 from fastapi import FastAPI
-from pydantic import BaseModel
+from prometheus_client import make_asgi_app
 
 from config.config import Settings
 from main import create_rag_chain
-
+from config.schemas import AnswerResponse, QuestionRequest, RetrievalQuality
 
 logger = logging.getLogger(__name__)
 
-
-class QuestionRequest(BaseModel):
-    question: str
-
-
-class AnswerResponse(BaseModel):
-    answer: str
 
 
 def _create_app() -> FastAPI:
@@ -28,14 +21,24 @@ def _create_app() -> FastAPI:
 
     app = FastAPI(title="RAG Assistant API")
 
+    metrics_app = make_asgi_app()
+    app.mount("/metrics", metrics_app)
+
     @app.post("/ask", response_model=AnswerResponse)
     async def ask(request: QuestionRequest) -> AnswerResponse:
         """
-        Простой эндпоинт для задавания вопросов RAG-ассистенту.
+        Эндпоинт для вопросов к RAG. В ответе — текст и оценка качества retrieval
+        (best_score, low_confidence: нашёл ли релевантные документы).
         """
         logger.info("Получен запрос к /ask")
-        answer = answer_fn(request.question)
-        return AnswerResponse(answer=answer)
+        result = answer_fn(request.question)
+        return AnswerResponse(
+            answer=result.answer,
+            retrieval_quality=RetrievalQuality(
+                best_score=result.best_score,
+                low_confidence=result.low_confidence,
+            ),
+        )
 
     return app
 

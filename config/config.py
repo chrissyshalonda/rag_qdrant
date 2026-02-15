@@ -8,11 +8,8 @@ class Settings(BaseSettings):
 
     qdrant_url: str = Field(default="http://localhost:6333")
     collection_name: str
-
-    data_path: str = "./data"
-    chunk_size: int = 1000
-    chunk_overlap: int = 100
     retriever_k: int = 4
+    retrieval_score_threshold: float = Field(default=0.3, description="Минимальный приемлемый best score, напр. 0.5")
 
     model_config = SettingsConfigDict(
         env_file=".env", 

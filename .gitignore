@@ -8,6 +8,7 @@ venv/
 
 # Configuration
 .env
+.env.database
 
 # Qdrant data (важно игнорировать локальное хранилище БД)
 qdrant_storage/

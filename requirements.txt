@@ -12,3 +12,4 @@ langchain_openai
 fastapi
 uvicorn
 requests
+prometheus-client
