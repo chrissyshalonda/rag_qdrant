@@ -12,6 +12,8 @@ venv/
 
 # Qdrant data (важно игнорировать локальное хранилище БД)
 qdrant_storage/
+pdf_storage/
+hf_cache/
 
 # Data
 data/
