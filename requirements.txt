@@ -13,3 +13,5 @@ fastapi
 uvicorn
 requests
 prometheus-client
+docling
+langchain-docling

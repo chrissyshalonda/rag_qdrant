@@ -18,7 +18,7 @@ class CollectionNotFoundError(Exception):
 
 
 def _get_embeddings() -> FastEmbedEmbeddings:
-    return FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+    return FastEmbedEmbeddings(model_name="intfloat/multilingual-e5-large")
 
 
 def _get_client(settings: Settings) -> QdrantClient:

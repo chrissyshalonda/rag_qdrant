@@ -2,14 +2,14 @@ import logging
 import os
 import sys
 
-from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
+from langchain_docling import DoclingLoader
 
-# Чтобы при запуске `python scripts/ingest.py` находился scripts.ingest_config
+
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _root not in sys.path:
     sys.path.insert(0, _root)
@@ -44,7 +44,17 @@ def ingest_docs(settings: IngestSettings) -> None:
         os.makedirs(settings.data_path)
         return
 
-    loader = DirectoryLoader(settings.data_path, glob="**/*.pdf", loader_cls=PyPDFLoader)
+    file_paths = []
+    for root, _, files in os.walk(settings.data_path):
+        for file in files:
+            if file.lower().endswith((".pdf", ".docx", ".pptx", ".xlsx", ".html")):
+                file_paths.append(os.path.join(root, file))
+    
+    if not file_paths:
+        logger.info("Файлы для обработки не найдены.")
+        return
+    
+    loader = DoclingLoader(file_path=file_paths)
     docs = loader.load()
 
     if not docs:
@@ -54,6 +64,7 @@ def ingest_docs(settings: IngestSettings) -> None:
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=settings.chunk_size,
         chunk_overlap=settings.chunk_overlap,
+        separators=["\n# ", "\n## ", "\n### ", "\n\n", "\n", " ", ""]
     )
     chunks = text_splitter.split_documents(docs)
 
@@ -67,11 +78,7 @@ def ingest_docs(settings: IngestSettings) -> None:
     )
     vector_store.add_documents(chunks)
 
-    logger.info(
-        "Успешно проиндексировано %s чанков в коллекции %s",
-        len(chunks),
-        settings.collection_name,
-    )
+    logger.info("Готово! Загружено %s чанков из %s файлов.", len(chunks), len(file_paths))
 
 
 if __name__ == "__main__":
