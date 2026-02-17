@@ -1,0 +1,16 @@
+qdrant-client==1.16.2
+fastembed==0.7.4
+
+langchain==0.1.0
+langchain-core==0.1.52
+langchain-community==0.0.38
+langchain-qdrant==0.0.1
+langchain-huggingface==0.0.3
+langchain-text-splitters==0.0.1
+
+fastapi==0.110.0
+uvicorn==0.29.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.1
+requests==2.31.0
+prometheus-client==0.20.0

@@ -1,5 +1,17 @@
 from dataclasses import dataclass
 from pydantic import BaseModel
+from langchain_huggingface import ChatHuggingFace
+from langchain_core.prompts import ChatPromptTemplate
+from config.config import Settings
+
+
+@dataclass
+class RAGChainState:
+    """Состояние RAG-цепи: модель, хранилище, промпт и настройки."""
+    chat_model: ChatHuggingFace
+    vector_store: any
+    prompt_template: ChatPromptTemplate
+    settings: Settings
 
 
 @dataclass

@@ -47,27 +47,13 @@ def ingest_docs(settings: IngestSettings) -> None:
     file_paths = []
     for root, _, files in os.walk(settings.data_path):
         for file in files:
-            if file.lower().endswith((".pdf", ".docx", ".pptx", ".xlsx", ".html")):
+            if file.lower().endswith(('.pdf', '.docx', '.doc', '.xlsx', '.xls', '.txt')):
                 file_paths.append(os.path.join(root, file))
     
     if not file_paths:
         logger.info("Файлы для обработки не найдены.")
         return
     
-    loader = DoclingLoader(file_path=file_paths)
-    docs = loader.load()
-
-    if not docs:
-        logger.info("Новых PDF документов для загрузки не найдено.")
-        return
-
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
-        separators=["\n# ", "\n## ", "\n### ", "\n\n", "\n", " ", ""]
-    )
-    chunks = text_splitter.split_documents(docs)
-
     _ensure_collection(settings)
     embeddings = FastEmbedEmbeddings(model_name=settings.embedding_model)
     client = _get_client(settings)
@@ -76,9 +62,46 @@ def ingest_docs(settings: IngestSettings) -> None:
         collection_name=settings.collection_name,
         embedding=embeddings,
     )
-    vector_store.add_documents(chunks)
+    
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=settings.chunk_size,
+        chunk_overlap=settings.chunk_overlap,
+        separators=["\n# ", "\n## ", "\n### ", "\n\n", "\n", " ", ""]
+    )
 
-    logger.info("Готово! Загружено %s чанков из %s файлов.", len(chunks), len(file_paths))
+    loader = DoclingLoader(file_path=file_paths)
+    doc_iter = loader.lazy_load()
+    
+    total_chunks = 0
+    processed_docs = 0
+    batch_chunks = []
+    batch_size = 32 
+    
+    for doc in doc_iter:
+        doc_chunks = text_splitter.split_documents([doc])
+        batch_chunks.extend(doc_chunks)
+        total_chunks += len(doc_chunks)
+        
+        if len(batch_chunks) >= batch_size:
+            vector_store.add_documents(batch_chunks)
+            logger.debug("Добавлено %s чанков в векторную БД (всего обработано: %s)", 
+                       len(batch_chunks), total_chunks)
+            batch_chunks = []
+        
+        processed_docs += 1
+        if processed_docs % 10 == 0:
+            logger.info("Обработано документов: %s, чанков: %s", processed_docs, total_chunks)
+
+    if batch_chunks:
+        vector_store.add_documents(batch_chunks)
+        logger.debug("Добавлено последних %s чанков в векторную БД", len(batch_chunks))
+    
+    if total_chunks == 0:
+        logger.info("Новых документов для загрузки не найдено.")
+        return
+
+    logger.info("Готово! Загружено %s чанков из %s документов (%s файлов).", 
+                total_chunks, processed_docs, len(file_paths))
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     collection_name: str
     retriever_k: int = 4
     retrieval_score_threshold: float = Field(default=0.3, description="Минимальный приемлемый best score, напр. 0.5")
+    model: str
 
     model_config = SettingsConfigDict(
         env_file=".env", 

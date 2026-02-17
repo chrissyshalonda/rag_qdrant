@@ -2,12 +2,8 @@ import logging
 import sys
 from typing import Callable
 
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from app.database import get_vector_store
-from config.config import Settings
-from app.core.rag_chain import create_rag_chain
+from src.config.config import Settings
+from src.app.core.rag_chain import create_rag_chain
 
 logging.basicConfig(
     level=logging.INFO,

@@ -8,17 +8,16 @@ logger = logging.getLogger(__name__)
 
 
 class CollectionNotFoundError(Exception):
-    """Коллекция не найдена в Qdrant. Запустите ingest для создания и заполнения коллекции."""
-
     def __init__(self, collection_name: str, message: str | None = None):
         self.collection_name = collection_name
         super().__init__(
-            message or f"Коллекция '{collection_name}' не найдена. Запустите ingest для создания и заполнения коллекции."
+            message or f"""Коллекция '{collection_name}' не найдена. 
+            Запустите init_db для создания и заполнения коллекции."""
         )
 
 
-def _get_embeddings() -> FastEmbedEmbeddings:
-    return FastEmbedEmbeddings(model_name="intfloat/multilingual-e5-large")
+def _get_embeddings(settings: Settings) -> FastEmbedEmbeddings:
+    return FastEmbedEmbeddings(model_name=settings.model)
 
 
 def _get_client(settings: Settings) -> QdrantClient:
@@ -33,7 +32,7 @@ def get_vector_store(settings: Settings) -> QdrantVectorStore:
     try:
         logger.info(f"Подключение к Qdrant по адресу: {settings.qdrant_url}")
 
-        embeddings = _get_embeddings()
+        embeddings = _get_embeddings(settings)
         client = _get_client(settings)
 
         if not client.collection_exists(settings.collection_name):

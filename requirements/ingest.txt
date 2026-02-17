@@ -1,0 +1,5 @@
+-r requirements.txt
+
+pypdf==4.1.0
+docling==2.7.1
+langchain-docling==0.0.1

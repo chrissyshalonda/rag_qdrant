@@ -1,0 +1,125 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant_rag
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - /mnt/d/rag_data/qdrant_storage:/qdrant/storage
+    restart: always
+  
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.app
+    container_name: rag_app
+    env_file: .env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - HF_HUB_DOWNLOAD_TIMEOUT=60
+    depends_on:
+      - qdrant
+    ports:
+      - "8000:8000"
+    volumes:
+      - /mnt/d/rag_data/pdf_storage:/app/pdf_storage
+      - /mnt/d/rag_data/hf_cache:/root/.cache/huggingface
+
+  ingest:
+    build:
+      context: ..
+      dockerfile: Ddeploy/Dockerfile.ingest
+    env_file: .env.database
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - DATA_PATH=/app/pdf_storage
+    volumes:
+      - .:/app
+      - /mnt/d/rag_data/pdf_storage:/app/pdf_storage
+    depends_on:
+      - qdrant
+    command: ["python", "bootstrap.py"]
+    profiles:
+      - tools
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: rag_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - /mnt/d/rag_data/prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+    depends_on:
+      - app
+
+# --- AIRFLOW ИНФРАСТРУКТУРА ---
+  postgres:
+    image: postgres:13
+    container_name: airflow_db
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    volumes:
+      - airflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow-webserver:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.airflow
+    container_name: airflow_webserver
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env.database
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - PYTHONPATH=/opt/airflow
+    volumes:
+      - ../src/dag:/opt/airflow/dags
+      - ../src/app:/opt/airflow/app
+      - ../src/scripts:/opt/airflow/scripts
+      - ../src/config:/opt/airflow/config
+      - /mnt/d/rag_data/pdf_storage:/opt/airflow/pdf_storage
+    ports:
+      - "8080:8080"
+    command: webserver
+
+  airflow-scheduler:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.airflow
+    container_name: airflow_scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env.database
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - PYTHONPATH=/opt/airflow
+    volumes:
+      - ./app/dag:/opt/airflow/dags
+      - ./app:/opt/airflow/app
+      - ./scripts:/opt/airflow/scripts
+      - ./config:/opt/airflow/config
+      - /mnt/d/rag_data/pdf_storage:/opt/airflow/pdf_storage
+    command: scheduler
+
+volumes:
+  prometheus_data:
+  airflow_postgres_data:

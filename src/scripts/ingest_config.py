@@ -12,7 +12,6 @@ class IngestSettings(BaseSettings):
     chunk_size: int = Field(default=1000, description="Размер чанка")
     chunk_overlap: int = Field(default=100, description="Перекрытие чанков")
 
-    # Должны совпадать с app.database (bge-small-en-v1.5 → 384)
     embedding_model: str = Field(
         default="BAAI/bge-small-en-v1.5",
         description="Модель эмбеддингов (должна совпадать с RAG-сервисом)",
