@@ -1,15 +1,20 @@
-FROM apache/airflow:2.7.1-python3.10
+# Docling уже внутри — не дублируем
+FROM rag_qdrant-docling:latest
 
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN pip install --no-cache-dir \
+    "pendulum<3" \
+    "Flask-Session<0.7" \
+    "connexion<3.0" \
+    apache-airflow==2.7.1 \
+    apache-airflow-providers-postgres \
+    && useradd -m -u 50000 airflow \
+    && mkdir -p /opt/airflow \
+    && chown -R airflow:airflow /opt/airflow
+
+ENV AIRFLOW_HOME=/opt/airflow
+ENV AIRFLOW_UID=50000
 
 USER airflow
-COPY requirements-ingest.txt .
-RUN uv pip install --no-cache -r requirements-ingest.txt
+WORKDIR /opt/airflow

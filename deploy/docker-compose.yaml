@@ -6,7 +6,7 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - /mnt/d/rag_data/qdrant_storage:/qdrant/storage
+      - /home/chrissys/rag_data_fast/qdrant_storage:/qdrant/storage
     restart: always
   
   app:
@@ -14,7 +14,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.app
     container_name: rag_app
-    env_file: .env
+    env_file: ../.env
     environment:
       - QDRANT_URL=http://qdrant:6333
       - HF_HUB_DOWNLOAD_TIMEOUT=60
@@ -29,17 +29,17 @@ services:
   ingest:
     build:
       context: ..
-      dockerfile: Ddeploy/Dockerfile.ingest
-    env_file: .env.database
+      dockerfile: deploy/Dockerfile.ingest
+    env_file: ../.env.database
     environment:
       - QDRANT_URL=http://qdrant:6333
       - DATA_PATH=/app/pdf_storage
     volumes:
-      - .:/app
+      - ..:/app
       - /mnt/d/rag_data/pdf_storage:/app/pdf_storage
     depends_on:
       - qdrant
-    command: ["python", "bootstrap.py"]
+    command: ["python", "src/bootstrap.py"]
     profiles:
       - tools
 
@@ -83,7 +83,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    env_file: .env.database
+    env_file: ../.env.database
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
@@ -97,7 +97,7 @@ services:
       - /mnt/d/rag_data/pdf_storage:/opt/airflow/pdf_storage
     ports:
       - "8080:8080"
-    command: webserver
+    command: airflow webserver
 
   airflow-scheduler:
     build:
@@ -107,19 +107,24 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    env_file: .env.database
+    env_file: ../.env.database
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - PYTHONPATH=/opt/airflow
     volumes:
-      - ./app/dag:/opt/airflow/dags
-      - ./app:/opt/airflow/app
-      - ./scripts:/opt/airflow/scripts
-      - ./config:/opt/airflow/config
+      - ../src/dag:/opt/airflow/dags
+      - ../src/app:/opt/airflow/app
+      - ../src/scripts:/opt/airflow/scripts
+      - ../src/config:/opt/airflow/config
       - /mnt/d/rag_data/pdf_storage:/opt/airflow/pdf_storage
-    command: scheduler
+    command: airflow scheduler
 
 volumes:
+  qdrant_storage:
   prometheus_data:
   airflow_postgres_data:
+
+networks:
+  default:
+    enable_ipv6: false

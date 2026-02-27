@@ -1,27 +1,29 @@
-import sys
+# import sys
+# import requests
 
-import requests
-
-
-BASE_URL = "http://localhost:8000"
+# BASE_URL = "http://localhost:8000"
 
 
-def ask(question: str) -> None:
-    """
-    Простой тестовый запрос к API.
-    """
-    response = requests.post(f"{BASE_URL}/ask", json={"question": question})
-    response.raise_for_status()
+# def ask(question: str) -> None:
+#     """Отправляет один вопрос к API и выводит ответ с источниками."""
+#     response = requests.post(f"{BASE_URL}/ask", json={"question": question})
+#     response.raise_for_status()
 
-    data = response.json()
-    answer = data.get("answer")
-    print(f"Вопрос: {question}\n\nОтвет: {answer}")
+#     data = response.json()
+#     print(f"Вопрос: {question}")
+#     print(f"Ответ:  {data.get('answer')}")
+#     sources = data.get("sources", [])
+#     if sources:
+#         print("Источники:")
+#         for s in sources:
+#             print(f"  • {s}")
+#     quality = data.get("retrieval_quality") or {}
+#     print(
+#         f"Retrieval: best_score={quality.get('best_score')}, "
+#         f"low_confidence={quality.get('low_confidence')}"
+#     )
 
 
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        q = " ".join(sys.argv[1:])
-    else:
-        q = "What is the capital of France?"
-    ask(q)
-
+# if __name__ == "__main__":
+#     q = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "Какова политика отпусков в компании?"
+#     ask(q)

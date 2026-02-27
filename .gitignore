@@ -25,3 +25,6 @@ data/
 
 # LangChain/HuggingFace cache
 .cache/
+
+# Ingest state database
+ingest_state.db
