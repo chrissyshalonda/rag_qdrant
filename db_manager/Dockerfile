@@ -2,7 +2,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for Docling and other libraries
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \

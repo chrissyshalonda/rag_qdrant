@@ -18,7 +18,7 @@ def _decode_mime_header(value: str | None) -> str:
     decoded = []
     for text, enc in parts:
         if isinstance(text, bytes):
-            decoded.append(text.decode(enc o    r "utf-8", errors="ignore"))
+            decoded.append(text.decode(enc or "utf-8", errors="ignore"))
         else:
             decoded.append(text)
     return "".join(decoded)

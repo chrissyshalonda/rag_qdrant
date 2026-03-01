@@ -1,5 +1,3 @@
-import hashlib
-import json
 import logging
 import os
 from collections.abc import Iterable, Iterator
@@ -7,22 +5,12 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from langchain_core.documents import Document
-
-logger = logging.getLogger(__name__)
-
+from common.utils import sha256_file, load_email_meta
 
 @dataclass(frozen=True)
 class ParsedDoc:
     document: Document
     chunk_kind: str  # table | formulas | text | ocr
-
-
-def sha256_file(path: str, chunk_size: int = 1024 * 1024) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while chunk := f.read(chunk_size):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def _stringify_cell(v) -> str:
@@ -33,18 +21,6 @@ def _stringify_cell(v) -> str:
     if isinstance(v, float):
         return f"{v:.10g}"
     return str(v)
-
-
-def _load_email_meta(path: str) -> dict:
-    meta_path = path + ".meta.json"
-    if not os.path.exists(meta_path):
-        return {}
-    try:
-        with open(meta_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as exc:
-        logger.warning("Не удалось прочитать метаданные %s: %s", meta_path, exc)
-        return {}
 
 
 def parse_xlsx(

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 from datetime import datetime, timedelta
 
@@ -17,19 +15,15 @@ default_args = {
 
 
 def _fetch_emails():
-    # Note: email_handler remains in the main app src as it might be used there too?
-    # Or should we move the logic? Let's keep it in src for now and import relatively or through env.
-    # Actually, the user wants db_manager to be independent.
-    # I'll keep the import as is for now, but will likely need to adjust if db_manager is a separate project.
     from app.email_handler import download_attachments
 
     files = download_attachments(
         user=os.getenv("EMAIL_USER"),
         password=os.getenv("EMAIL_PASSWORD"),
         folder_to_save=os.getenv("FOLDER"),
-        scope="UNSEEN",  # только новые письма
+        scope="UNSEEN",
     )
-    print(f"Скачано вложений: {len(files)}")
+    print(f"Downloaded attachments: {len(files)}")
 
 
 def _ingest_to_vdb():
@@ -42,7 +36,7 @@ def _ingest_to_vdb():
 with DAG(
     "company_docs_ingest",
     default_args=default_args,
-    description="Загрузка вложений из корпоративной почты и обновление базы знаний",
+    description="Downloading attachments from corporate email and updating the knowledge base",
     schedule="@hourly",
     catchup=False,
 ) as dag:

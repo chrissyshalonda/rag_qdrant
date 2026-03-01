@@ -12,21 +12,21 @@ from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharac
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
 
-# Note: adjusted imports for db_manager structure
+from common.database import get_vector_store
+from common.utils import sha256_file, load_email_meta
 from scripts.ingest_config import IngestSettings
-from scripts.ingest_state import IngestStateDB
-from scripts.parsers import parse_files, sha256_file
+from scripts.parsers import parse_files
 
 logger = logging.getLogger(__name__)
 
 
 def _make_id(file_hash: str, index: int) -> str:
-    """Детерминированный UUID для чанка на основе хеша файла и индекса."""
+    """Deterministic UUID for a chunk based on file hash and index."""
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{file_hash}_{index}"))
 
 
 def _create_splitters(settings: IngestSettings):
-    """Создаёт пару сплиттеров: по заголовкам MD и по длине."""
+    """Creates a pair of splitters: by MD headers and by length."""
     header_splitter = MarkdownHeaderTextSplitter(
         headers_to_split_on=[("#", "h1"), ("##", "h2"), ("###", "h3")]
     )
@@ -43,7 +43,7 @@ def _extract_documents(
     header_splitter: MarkdownHeaderTextSplitter,
     length_splitter: RecursiveCharacterTextSplitter,
 ) -> Iterable[Document]:
-    """Загружает и чанкует документ в зависимости от типа файла."""
+    """Loads and chunks a document depending on the file type."""
     if is_xlsx:
         for parsed in parse_files([file_path]):
             yield parsed.document
@@ -72,7 +72,7 @@ def _upsert_batch(
     ids: List[str],
     embeddings_model: FastEmbedEmbeddings,
 ) -> bool:
-    """Отправляет батч чанков в Qdrant. Возвращает True при успехе."""
+    """Sends a batch of chunks to Qdrant. Returns True on success."""
     if not chunks:
         return True
     try:
@@ -91,7 +91,7 @@ def _upsert_batch(
         )
         return True
     except Exception as exc:
-        logger.error("Ошибка upsert в Qdrant: %s", exc)
+        logger.error("Error upsert in Qdrant: %s", exc)
         return False
 
 
@@ -103,8 +103,8 @@ def _process_file(
     settings: IngestSettings,
     splitters: tuple,
 ) -> Tuple[int, bool]:
-    """Обрабатывает один файл: парсит, чанкует, загружает в Qdrant."""
-    email_meta = _load_email_meta(file_path)
+    """Processes one file: parses, chunks, and uploads to Qdrant."""
+    email_meta = load_email_meta(file_path)
     is_xlsx = file_path.lower().endswith(".xlsx")
     header_splitter, length_splitter = splitters
 
@@ -134,13 +134,12 @@ def _process_file(
         return total_added, True
 
     except Exception as exc:
-        logger.error("Ошибка обработки %s: %s", file_path, exc)
+        logger.error("Error processing %s: %s", file_path, exc)
         return 0, False
 
 
 def ingest_docs(settings: IngestSettings) -> None:
-    """Индексирует все новые и изменённые документы из data_path в Qdrant."""
-    state_db = IngestStateDB(os.path.join(os.path.dirname(__file__), "ingest_state.db"))
+    """Indexes all documents from data_path into Qdrant."""
     embeddings = FastEmbedEmbeddings(model_name=settings.embedding_model)
     client = QdrantClient(url=settings.qdrant_url)
 
@@ -153,36 +152,27 @@ def ingest_docs(settings: IngestSettings) -> None:
             ),
         )
 
-    vector_store = QdrantVectorStore(
-        client=client,
-        collection_name=settings.collection_name,
-        embedding=embeddings,
-    )
+    vector_store = get_vector_store(settings)
     splitters = _create_splitters(settings)
 
-    # Собираем файлы, которые нужно обработать
-    files_to_process: List[Tuple[str, str]] = []
+    files_count = 0
     for root, _, filenames in os.walk(settings.data_path):
         for fname in filenames:
             if not fname.lower().endswith((".pdf", ".docx", ".xlsx", ".txt")):
                 continue
+            
             path = os.path.join(root, fname)
             f_hash = sha256_file(path)
-            if not state_db.should_skip_file(path, f_hash):
-                files_to_process.append((path, f_hash))
+            
+            added, success = _process_file(path, f_hash, vector_store, embeddings, settings, splitters)
+            files_count += 1
 
-    logger.info("Новых/изменённых файлов для индексации: %d", len(files_to_process))
+            if success:
+                logger.info("%s (+%d chunks)", fname, added)
+            else:
+                logger.error("%s - Error uploading to Qdrant", fname)
 
-    for path, f_hash in files_to_process:
-        state_db.mark_in_progress(path, f_hash)
-        added, success = _process_file(path, f_hash, vector_store, embeddings, settings, splitters)
-
-        if success:
-            state_db.mark_done(path, f_hash)
-            logger.info("%s (+%d чанков)", os.path.basename(path), added)
-        else:
-            state_db.mark_failed(path, f_hash, "Ошибка загрузки в Qdrant")
-            logger.error("%s", os.path.basename(path))
+    logger.info("Processed %d files.", files_count)
 
 
 if __name__ == "__main__":

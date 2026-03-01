@@ -1,22 +1,19 @@
 from functools import lru_cache
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
+from common.config import BaseQdrantSettings
 
 
-class Settings(BaseSettings):
+class Settings(BaseQdrantSettings):
     huggingfacehub_api_token: str
     api_key: str = Field(default="optional_if_not_used")
 
-    qdrant_url: str = Field(default="http://localhost:6333")
-    collection_name: str
     retriever_k: int = 4
     retrieval_score_threshold: float = Field(
         default=0.3,
         description="Минимальный приемлемый similarity score для retrieval",
     )
-    # Модель эмбеддингов (должна совпадать с моделью при индексации)
-    embedding_model: str
     # LLM через HuggingFace Inference API
     llm_repo_id: str = Field(
         default="meta-llama/Llama-3.1-8B-Instruct",

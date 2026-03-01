@@ -21,7 +21,7 @@ RUN uv pip install --system -r /app/base.txt
 
 COPY . .
 WORKDIR /app/src
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app:/app/src
 
 EXPOSE 8000
 CMD ["uvicorn", "app.api.api:app", "--host", "0.0.0.0", "--port", "8000"]
